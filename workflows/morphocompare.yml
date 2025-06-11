@@ -1,42 +1,57 @@
-# MorphoSource CSV Matcher Configuration
-# This file contains all the settings for matching CSV data with MorphoSource API
+name: MorphoSource CSV Processor
 
-# API Configuration
-api:
-  key: "Morphosource_API"  # Replace with your actual MorphoSource API key
-  base_url: "https://www.morphosource.org/catalog/media"
-  timeout: 30
-  rate_limit_delay: 0.5  # Seconds between API calls
+on:
+  workflow_dispatch:
+    inputs:
+      csv_filename:
+        description: 'CSV filename to process (must be in data/ directory)'
+        required: true
+        type: string
+        default: 'example.csv'
 
-# File Paths
-paths:
-  data_directory: "data"  # Directory containing input CSV files
-  output_directory: "output"  # Directory for output files (will be created if doesn't exist)
-
-# CSV Column Mapping
-# These are the expected column names in your CSV file
-columns:
-  institution_code: "institution_code"  # Column D in your example
-  collection_code: "collection_code"    # Column E in your example  
-  catalog_number: "catalog_number"      # Column F in your example
-  voxel_x_spacing: "Voxel_x_spacing"
-  voxel_y_spacing: "Voxel_y_spacing"
-  voxel_z_spacing: "Voxel_z_spacing"
-
-# Processing Options
-processing:
-  debug_rows: 5  # Number of rows to show detailed debug info for
-  voxel_tolerance: 0.0001  # Tolerance for voxel spacing comparison
-  max_retries: 3  # Number of retries for failed API calls
-
-# Output Options
-output:
-  filename_prefix: "matched-"  # Prefix for output files
-  include_debug_info: true  # Include additional debug columns in output
-  save_failed_searches: true  # Save a separate file with failed searches
-
-# Logging
-logging:
-  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
-  save_log: true  # Save log to file
-  log_filename: "morphosource_matcher.log"
+jobs:
+  process-csv:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pandas requests
+    
+    - name: Create output directory
+      run: mkdir -p data/output
+    
+    - name: Run MorphoSource processor
+      env:
+        MORPHOSOURCE_API_KEY: ${{ secrets.Morphosource_API }}
+      run: |
+        python scripts/morphosource_processor.py "data/${{ github.event.inputs.csv_filename }}"
+    
+    - name: Upload processed CSV
+      uses: actions/upload-artifact@v3
+      with:
+        name: processed-csv
+        path: data/output/matched-*.csv
+    
+    - name: Commit results (optional)
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add data/output/matched-*.csv
+        git diff --staged --quiet || git commit -m "Add processed CSV for ${{ github.event.inputs.csv_filename }}"
+    
+    - name: Push changes (optional)
+      uses: ad-m/github-push-action@master
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        branch: ${{ github.ref }}
+      continue-on-error: true
