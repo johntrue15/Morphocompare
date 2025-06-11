@@ -37,7 +37,7 @@ jobs:
         python scripts/morphosource_processor.py "data/${{ github.event.inputs.csv_filename }}"
     
     - name: Upload processed CSV
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: processed-csv
         path: data/output/matched-*.csv
