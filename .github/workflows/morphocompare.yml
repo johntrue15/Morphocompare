@@ -12,6 +12,8 @@ on:
 jobs:
   process-csv:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     
     steps:
     - name: Checkout repository
@@ -50,8 +52,6 @@ jobs:
         git diff --staged --quiet || git commit -m "Add processed CSV for ${{ github.event.inputs.csv_filename }}"
     
     - name: Push changes (optional)
-      uses: ad-m/github-push-action@master
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        branch: ${{ github.ref }}
+      run: |
+        git push
       continue-on-error: true
